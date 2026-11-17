@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Factory Radius Checker (All & Individual)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; background: #f4f6f9; }
+        header { background: #1e293b; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; }
+        header h1 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 370px; background: white; padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.08); overflow-y: auto; z-index: 1000; display: flex; flex-direction: column; gap: 14px; }
+        #map { flex: 1; height: 100%; }
+        label { font-weight: 600; font-size: 13px; color: #334155; display: block; margin-bottom: 5px; }
+        select, input { width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; }
+        select:focus, input:focus { border-color: #2563eb; }
+        select { background: #f8fafc; font-weight: 600; color: #0f172a; cursor: pointer; }
+        .btn { width: 100%; padding: 11px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-secondary { background: #e2e8f0; color: #334155; margin-top: 8px; }
+        .btn-secondary:hover { background: #cbd5e1; }
+        .result-box { padding: 15px; border-radius: 10px; display: none; border-left: 5px solid; }
+        .result-within { background: #dcfce7; border-color: #16a34a; color: #14532d; }
+        .result-outside { background: #fee2e2; border-color: #dc2626; color: #7f1d1d; }
+        .result-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+        .result-dist { font-size: 14px; line-height: 1.5; margin-bottom: 8px; }
+        .other-factories { font-size: 12px; background: rgba(255,255,255,0.65); padding: 8px; border-radius: 6px; margin-bottom: 8px; color: #334155; }
+        .hint { font-size: 12px; color: #64748b; line-height: 1.4; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            .sidebar { width: 100%; max-height: 50vh; padding: 14px; }
+            #map { height: 50vh; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>📍 HR Factory 5km Radius Checker</h1>
+</header>
+
+<div class="main-container">
+    <div class="sidebar">
+        <div>
+            <label for="factorySelect">1. Factory එක තෝරන්න (Select Factory):</label>
+            <select id="factorySelect" onchange="updateMapDisplay()">
+                <option value="ALL" selected>🌐 All Factories (සියලුම Factories - ළඟම එක බලන්න)</option>
+                <option value="0">🏭 Main Factory (Dambadeniya)</option>
+                <option value="1">🏭 Loluwagoda Factory</option>
+                <option value="2">🏭 Waradala Factory</option>
+                <option value="3">🏭 Pannala Factory</option>
+                <option value="4">🏭 Thorayaya Factory</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="searchInput">2. සේවකයාගේ ගම හෝ Coordinates:</label>
+            <input type="text" id="searchInput" placeholder="උදා: Kuliyapitiya හෝ 7.3120, 80.1450" onkeypress="if(event.key==='Enter') searchLocation()">
+            <button class="btn btn-primary" style="margin-top: 8px;" onclick="searchLocation()">Check Location (පරීක්ෂා කරන්න)</button>
+        </div>
+
+        <div id="resultBox" class="result-box">
+            <div id="resultTitle" class="result-title"></div>
+            <div id="resultDist" class="result-dist"></div>
+            <div id="otherFactories" class="other-factories"></div>
+            <button class="btn btn-secondary" onclick="openGoogleMapsDirections()">🚗 Google Maps පාරේ දුර බලන්න</button>
+        </div>
+
+        <div class="hint">
+            💡 <b>පහසු උපදෙස්:</b><br>
+            • <b>All Factories</b> තෝරා ඇති විට සියලුම Factory වල 5km රවුම් පෙන්වන අතර, සේවකයාගේ ස්ථානය දැමූ විට <b>ළඟම Factory එක</b> ඉබේම පෙන්වයි.<br>
+            • සිතියම මත ඕනෑම තැනක් <b>Click / Tap</b> කිරීමෙන්ද දුර බැලිය හැක.
+        </div>
+    </div>
+
+    <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const factories = [
+        { name: "Main Factory (Dambadeniya)", shortName: "Main Factory", lat: 7.373043431372173, lng: 80.15719001325084 },
+        { name: "Loluwagoda Factory", shortName: "Loluwagoda", lat: 7.308623151932602, lng: 80.13005672149494 },
+        { name: "Waradala Factory", shortName: "Waradala", lat: 7.271222053796897, lng: 80.04617902922782 },
+        { name: "Pannala Factory", shortName: "Pannala", lat: 7.348262762847059, lng: 80.0300868150596 },
+        { name: "Thorayaya Factory", shortName: "Thorayaya", lat: 7.519008600520468, lng: 80.42570808565769 }
+    ];
+
+    const RADIUS_KM = 5;
+    let factoryLayers = [];
+    let empMarker = null;
+    let empCoords = null;
+    let connectionLine = null;
+    let targetFactoryForDirections = factories[0];
+
+    const map = L.map('map').setView([7.37, 80.16], 10);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    function drawFactories(selectedValue) {
+        factoryLayers.forEach(layer => map.removeLayer(layer));
+        factoryLayers = [];
+
+        const listToDraw = selectedValue === "ALL" ? factories : [factories[parseInt(selectedValue)]];
+        const boundsPoints = [];
+
+        listToDraw.forEach(f => {
+            const icon = L.divIcon({
+                html: `<div style="background:#1e293b;color:white;padding:3px 7px;border-radius:6px;font-weight:bold;font-size:11px;white-space:nowrap;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);">🏭 ${f.shortName}</div>`,
+                className: '',
+                iconAnchor: [40, 14]
+            });
+
+            const marker = L.marker([f.lat, f.lng], { icon: icon }).addTo(map);
+            const circle = L.circle([f.lat, f.lng], {
+                color: '#2563eb',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.14,
+                weight: 2,
+                radius: RADIUS_KM * 1000
+            }).addTo(map);
+
+            factoryLayers.push(marker, circle);
+            boundsPoints.push([f.lat, f.lng]);
+        });
+
+        if (!empCoords) {
+            if (listToDraw.length > 1) {
+                map.fitBounds(L.latLngBounds(boundsPoints), { padding: [50, 50] });
+            } else {
+                map.setView([listToDraw[0].lat, listToDraw[0].lng], 12);
+            }
+        }
+    }
+
+    function updateMapDisplay() {
+        const selectedValue = document.getElementById('factorySelect').value;
+        drawFactories(selectedValue);
+        if (empCoords) {
+            evaluateEmployee(empCoords.lat, empCoords.lng);
+        }
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function evaluateEmployee(lat, lng) {
+        empCoords = { lat, lng };
+        const selectedValue = document.getElementById('factorySelect').value;
+
+        // Calculate distances to all factories and sort nearest first
+        const distances = factories.map(f => ({
+            factory: f,
+            dist: calculateDistance(f.lat, f.lng, lat, lng)
+        })).sort((a, b) => a.dist - b.dist);
+
+        let primaryMatch;
+        if (selectedValue === "ALL") {
+            primaryMatch = distances[0]; // Nearest factory
+        } else {
+            const chosenFactory = factories[parseInt(selectedValue)];
+            primaryMatch = distances.find(d => d.factory.name === chosenFactory.name);
+        }
+
+        targetFactoryForDirections = primaryMatch.factory;
+        const isWithin = primaryMatch.dist <= RADIUS_KM;
+
+        if (empMarker) map.removeLayer(empMarker);
+        if (connectionLine) map.removeLayer(connectionLine);
+
+        empMarker = L.marker([lat, lng]).addTo(map)
+            .bindPopup(`<b>සේවකයාගේ ස්ථානය</b><br>ළඟම: ${primaryMatch.factory.shortName} (${primaryMatch.dist.toFixed(2)} km)`).openPopup();
+
+        connectionLine = L.polyline([[primaryMatch.factory.lat, primaryMatch.factory.lng], [lat, lng]], {
+            color: isWithin ? '#16a34a' : '#dc2626',
+            weight: 3,
+            dashArray: '6, 6'
+        }).addTo(map);
+
+        const resultBox = document.getElementById('resultBox');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultDist = document.getElementById('resultDist');
+        const otherFactoriesDiv = document.getElementById('otherFactories');
+
+        resultBox.style.display = 'block';
+        if (isWithin) {
+            resultBox.className = 'result-box result-within';
+            resultTitle.innerText = `✅ WITHIN 5 KM (${primaryMatch.factory.shortName})`;
+        } else {
+            resultBox.className = 'result-box result-outside';
+            resultTitle.innerText = `❌ OUTSIDE 5 KM (${primaryMatch.factory.shortName})`;
+        }
+
+        const labelText = selectedValue === "ALL" ? "ළඟම Factory එක" : "තෝරාගත් Factory එක";
+        resultDist.innerHTML = `${labelText}: <b>${primaryMatch.factory.name}</b><br>සෘජු දුර: <b>${primaryMatch.dist.toFixed(2)} km</b>`;
+
+        if (selectedValue === "ALL") {
+            const othersHtml = distances.slice(1, 4).map(d =>
+                `• ${d.factory.shortName}: <b>${d.dist.toFixed(2)} km</b> ${d.dist <= RADIUS_KM ? '✅' : ''}`
+            ).join('<br>');
+            otherFactoriesDiv.style.display = 'block';
+            otherFactoriesDiv.innerHTML = `<b>අනෙකුත් ළඟම Factories:</b><br>${othersHtml}`;
+        } else {
+            otherFactoriesDiv.style.display = 'none';
+        }
+
+        const bounds = L.latLngBounds([[primaryMatch.factory.lat, primaryMatch.factory.lng], [lat, lng]]);
+        map.fitBounds(bounds, { padding: [60, 60] });
+    }
+
+    async function searchLocation() {
+        const query = document.getElementById('searchInput').value.trim();
+        if (!query) return;
+
+        const coordMatch = query.match(/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/);
+        if (coordMatch) {
+            evaluateEmployee(parseFloat(coordMatch[1]), parseFloat(coordMatch[2]));
+            return;
+        }
+
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Sri Lanka')}`);
+            const data = await res.json();
+            if (data && data.length > 0) {
+                evaluateEmployee(parseFloat(data[0].lat), parseFloat(data[0].lon));
+            } else {
+                alert('ස්ථානය සොයාගත නොහැකි විය. ගමේ නම නිවැරදිව දමන්න හෝ Coordinates ලබා දෙන්න.');
+            }
+        } catch (e) {
+            alert('Internet සම්බන්ධතාවය පරීක්ෂා කරන්න.');
+        }
+    }
+
+    function openGoogleMapsDirections() {
+        if (!empCoords) return;
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${targetFactoryForDirections.lat},${targetFactoryForDirections.lng}&destination=${empCoords.lat},${empCoords.lng}`;
+        window.open(url, '_blank');
+    }
+
+    map.on('click', function(e) {
+        evaluateEmployee(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Initial load with All Factories
+    drawFactories("ALL");
+</script>
+
+</body>
+</html>
