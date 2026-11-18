@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1e293b">
 
-    <!-- Company Logo App Icon (Requires logo.png in GitHub) -->
+    <!-- Company Logo App Icon -->
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="apple-touch-icon" sizes="180x180" href="logo.png">
 
@@ -23,7 +23,7 @@
         header { background: #1e293b; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; }
         header h1 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
         .main-container { display: flex; flex: 1; overflow: hidden; }
-        .sidebar { width: 370px; background: white; padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.08); overflow-y: auto; z-index: 1000; display: flex; flex-direction: column; gap: 14px; }
+        .sidebar { width: 380px; background: white; padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.08); overflow-y: auto; z-index: 1000; display: flex; flex-direction: column; gap: 14px; }
         #map { flex: 1; height: 100%; }
         label { font-weight: 600; font-size: 13px; color: #334155; display: block; margin-bottom: 5px; }
         select, input { width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; }
@@ -34,17 +34,23 @@
         .btn-primary:hover { background: #1d4ed8; }
         .btn-secondary { background: #e2e8f0; color: #334155; margin-top: 8px; }
         .btn-secondary:hover { background: #cbd5e1; }
+        .btn-gmap { background: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; margin-top: 6px; font-size: 13px; padding: 8px; }
+        .btn-gmap:hover { background: #e2e8f0; }
+        .search-results-list { border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; display: none; margin-top: 6px; background: #fff; }
+        .search-result-item { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #e2e8f0; cursor: pointer; color: #1e293b; }
+        .search-result-item:last-child { border-bottom: none; }
+        .search-result-item:hover { background: #eff6ff; color: #1d4ed8; }
         .result-box { padding: 15px; border-radius: 10px; display: none; border-left: 5px solid; }
         .result-within { background: #dcfce7; border-color: #16a34a; color: #14532d; }
         .result-outside { background: #fee2e2; border-color: #dc2626; color: #7f1d1d; }
         .result-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
         .result-dist { font-size: 14px; line-height: 1.5; margin-bottom: 8px; }
         .other-factories { font-size: 12px; background: rgba(255,255,255,0.65); padding: 8px; border-radius: 6px; margin-bottom: 8px; color: #334155; }
-        .hint { font-size: 12px; color: #64748b; line-height: 1.4; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+        .hint { font-size: 12px; color: #64748b; line-height: 1.45; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
         @media (max-width: 768px) {
             .main-container { flex-direction: column; }
-            .sidebar { width: 100%; max-height: 50vh; padding: 14px; }
-            #map { height: 50vh; }
+            .sidebar { width: 100%; max-height: 52vh; padding: 14px; }
+            #map { height: 48vh; }
         }
     </style>
 </head>
@@ -69,9 +75,11 @@
         </div>
 
         <div>
-            <label for="searchInput">2. සේවකයාගේ ගම හෝ Coordinates:</label>
-            <input type="text" id="searchInput" placeholder="උදා: Kuliyapitiya හෝ 7.3120, 80.1450" onkeypress="if(event.key==='Enter') searchLocation()">
+            <label for="searchInput">2. ගමේ නම, Coordinates හෝ Google Map Link:</label>
+            <input type="text" id="searchInput" placeholder="උදා: Giriulla හෝ 7.345, 80.123 හෝ Map Link" onkeypress="if(event.key==='Enter') searchLocation()">
+            <div id="searchResultsList" class="search-results-list"></div>
             <button class="btn btn-primary" style="margin-top: 8px;" onclick="searchLocation()">Check Location (පරීක්ෂා කරන්න)</button>
+            <button class="btn btn-gmap" onclick="searchInGoogleMaps()">🔍 පොඩි ගමක් නම් Google Maps වලින් හොයන්න</button>
         </div>
 
         <div id="resultBox" class="result-box">
@@ -82,9 +90,9 @@
         </div>
 
         <div class="hint">
-            💡 <b>පහසු උපදෙස්:</b><br>
-            • <b>All Factories</b> තෝරා ඇති විට සියලුම Factory වල 5km රවුම් පෙන්වන අතර, සේවකයාගේ ස්ථානය දැමූ විට <b>ළඟම Factory එක</b> ඉබේම පෙන්වයි.<br>
-            • සිතියම මත ඕනෑම තැනක් <b>Click / Tap</b> කිරීමෙන්ද දුර බැලිය හැක.
+            💡 <b>පොඩි ගම් නිවැරදිව බලන විදිය:</b><br>
+            • ගමේ නම සිතියමේ නැත්නම් <b>"Google Maps වලින් හොයන්න"</b> ඔබා, Google Map එකේ ඒ ගම උඩ ඔබාගෙන (Long Press / Right Click) එන <b>Coordinates (7.xxx, 80.xxx)</b> copy කර ඉහත කොටුවට Paste කරන්න.<br>
+            • නැතිනම් සිතියම zoom කර ගම තියෙන තැන <b>Click / Tap</b> කරන්න.
         </div>
     </div>
 
@@ -170,6 +178,7 @@
 
     function evaluateEmployee(lat, lng) {
         empCoords = { lat, lng };
+        document.getElementById('searchResultsList').style.display = 'none';
         const selectedValue = document.getElementById('factorySelect').value;
 
         const distances = factories.map(f => ({
@@ -233,25 +242,54 @@
 
     async function searchLocation() {
         const query = document.getElementById('searchInput').value.trim();
+        const listDiv = document.getElementById('searchResultsList');
+        listDiv.style.display = 'none';
         if (!query) return;
 
-        const coordMatch = query.match(/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/);
+        // 1. Check direct coordinates OR Google Maps URL containing @lat,lng or q=lat,lng
+        const coordMatch = query.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
         if (coordMatch) {
             evaluateEmployee(parseFloat(coordMatch[1]), parseFloat(coordMatch[2]));
             return;
         }
 
+        // 2. Search prioritizing North Western & Western Province (viewbox around factories)
         try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Sri Lanka')}`);
+            const viewbox = "79.85,7.65,80.60,7.10"; // Bounding box covering Kurunegala & Gampaha districts
+            const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=lk&viewbox=${viewbox}&bounded=0&limit=5&q=${encodeURIComponent(query)}`;
+            const res = await fetch(url);
             const data = await res.json();
+
             if (data && data.length > 0) {
+                // Sort results so locations closer to Dambadeniya/Kurunegala appear first
+                data.sort((a, b) => {
+                    const distA = calculateDistance(7.37, 80.15, parseFloat(a.lat), parseFloat(a.lon));
+                    const distB = calculateDistance(7.37, 80.15, parseFloat(b.lat), parseFloat(b.lon));
+                    return distA - distB;
+                });
+
+                // Automatically pick the closest match, AND show alternatives if multiple exist
                 evaluateEmployee(parseFloat(data[0].lat), parseFloat(data[0].lon));
+
+                if (data.length > 1) {
+                    listDiv.innerHTML = `<div style="padding:6px 10px;background:#f1f5f9;font-size:11px;font-weight:bold;color:#475569;">වෙනත් ගැළපෙන ස්ථාන (තෝරන්න):</div>` +
+                        data.map(item => `<div class="search-result-item" onclick="evaluateEmployee(${item.lat}, ${item.lon})">📍 ${item.display_name}</div>`).join('');
+                    listDiv.style.display = 'block';
+                }
             } else {
-                alert('ස්ථානය සොයාගත නොහැකි විය. ගමේ නම නිවැරදිව දමන්න හෝ Coordinates ලබා දෙන්න.');
+                alert('මෙම පොඩි ගම සිතියමේ සොයාගත නොහැකි විය. පහළ ඇති "Google Maps වලින් හොයන්න" බොත්තම ඔබා ගමේ Coordinates ගන්න.');
             }
         } catch (e) {
             alert('Internet සම්බන්ධතාවය පරීක්ෂා කරන්න.');
         }
+    }
+
+    function searchInGoogleMaps() {
+        const query = document.getElementById('searchInput').value.trim();
+        const searchUrl = query
+            ? `https://www.google.com/maps/search/${encodeURIComponent(query + ', Sri Lanka')}`
+            : `https://www.google.com/maps/@7.3730,80.1571,12z`;
+        window.open(searchUrl, '_blank');
     }
 
     function openGoogleMapsDirections() {
